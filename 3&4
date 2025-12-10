@@ -1,0 +1,94 @@
+
+# **EXPERIMENT 3: CONFIGURATION OF WINDOWS SHARE (SMB)**
+
+1. Log in to the TrueNAS dashboard using the IP shown in the console.
+
+2. Go to **Accounts → Users** and create a user for Windows access if required.
+
+3. Set or change the password for the user.
+
+4. Assign permissions for the user on the dataset that will be shared.
+
+5. Go to **Storage → Pools** and create the required pools
+   (e.g., `Pool2`, `Pool3`, etc.).
+
+6. Create a dataset for Windows share under the pool
+   (e.g., `/mnt/Pool2/WINDOWS`).
+
+7. Go to **Services** and enable:
+   **SMB (Windows Sharing)**
+
+8. In SMB settings, provide the necessary hostname if prompted.
+
+9. Go to **Sharing → Windows Shares (SMB)** → Add
+
+   * Path:
+
+     ```
+     /mnt/Pool2/WINDOWS
+     ```
+
+10. Save and apply the configuration.
+
+11. From a Windows machine:
+
+    * Open File Explorer
+    * Click **Map Network Drive**
+    * Enter:
+
+      ```
+      \\<truenas-ip>\WINDOWS
+      ```
+    * Provide the TrueNAS username and password.
+
+12. Access the shared folder and verify read/write operations.
+
+---
+
+# **EXPERIMENT 4: CONFIGURATION OF UNIX SHARE (NFS)**
+
+1. Log in to the TrueNAS dashboard.
+
+2. Go to **Storage → Pools** and create a dataset for Linux sharing
+   Path example:
+
+   ```
+   /mnt/Pool2/LINUX
+   ```
+
+3. Go to **Sharing → Unix Shares (NFS)** → Add
+
+   * Path:
+
+     ```
+     /mnt/Pool2/LINUX
+     ```
+
+4. Save the NFS share configuration.
+
+5. Go to **Services** and enable:
+   **NFS Service**
+
+6. On a Linux machine, create a mount point:
+
+```
+mkdir /nfs/shared
+```
+
+7. Mount the NFS share:
+
+```
+mount -t nfs -o nfsvers=3 <truenas-ip>:/mnt/Pool2/LINUX /mnt/nfs_check
+```
+
+8. Verify the mount:
+
+```
+df -h
+ls /mnt/nfs_check
+```
+
+9. Test file creation from Linux to confirm NFS is working.
+
+---
+
