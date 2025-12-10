@@ -1,0 +1,259 @@
+
+
+# **EXPERIMENT 1: PASSWORDLESS AUTHENTICATION AND NFS CONFIGURATION**
+
+## Passwordless Authentication
+
+1. Generate SSH Key
+
+```
+ssh-keygen -t rsa
+```
+
+2. Copy Key to Slaves
+
+```
+ssh-copy-id <SLAVE1-IP>
+ssh-copy-id <SLAVE2-IP>
+```
+
+3. Verify Passwordless Login
+
+```
+ssh <SLAVE1-IP>
+ssh <SLAVE2-IP>
+```
+
+---
+
+## NFS Configuration
+
+4. Install NFS Server on Master
+
+```
+sudo apt install nfs-kernel-server
+```
+
+5. Create Shared Directory
+
+```
+sudo mkdir -p /nfs/shared
+sudo chmod 777 /nfs/shared
+```
+
+6. Configure Exports (edit /etc/exports)
+
+```
+/nfs/shared <SLAVE1-IP>(rw,sync,no_subtree_check)
+/nfs/shared <SLAVE2-IP>(rw,sync,no_subtree_check)
+```
+
+7. Apply Export Settings
+
+```
+sudo exportfs -a
+sudo systemctl restart nfs-kernel-server
+```
+
+8. Install NFS Client on Slaves
+
+```
+sudo apt install nfs-common
+```
+
+9. Mount NFS Share
+
+```
+sudo mkdir -p /nfs/shared
+sudo mount <MASTER-IP>:/nfs/shared /nfs/shared
+```
+
+10. Verify
+
+```
+df -h
+ls /nfs/shared
+```
+
+---
+
+# **EXPERIMENT 2: JAVA WEB SERVICES – CALCULATOR PROGRAM**
+
+1. Check if Apache Tomcat 9 is present
+
+```
+sudo systemctl restart tomcat
+go to localhost:<tomcat_port_no> // to verify tomcat is running
+sudo systemctl status tomcat //this should show status active
+```
+
+2. Install JDK and IntelliJ IDEA Ultimate
+
+```
+sudo apt update
+sudo apt install openjdk-8-jdk
+sudo snap install intellij-idea-ultimate –classic
+```
+
+3. Setting Up Tomcat in IntelliJ IDEA
+
+* File → Settings → Build, Execution, Deployment
+* Application Servers → + icon → Tomcat Server
+* Tomcat Home = `/opt/tomcat`
+  If Permission Error → run:
+
+```
+sudo chmod -R a+rX /opt/tomcat
+```
+
+Back in IntelliJ → Apply → OK
+
+4. Create a Web Application (Server Side) – Calculator Project
+
+* File → New Project
+* Java Enterprise / Jakarta EE
+* Template: Web Application
+* Application Server: Apache Tomcat (Tomcat 9.0)
+* Project Name: calculator
+* Finish
+
+5. Create service package and class
+   Create `OperatorService.java` under `com.example.calculator`:
+
+```java
+package com.example.calculator;
+
+import java.util.List;
+import javax.jws.WebMethod;
+import javax.jws.WebService;
+
+@WebService
+public class OperatorService {
+    @WebMethod
+    public int add(int a, int b) { return a + b; }
+
+    @WebMethod
+    public int sub(int a, int b) { return a - b; }
+
+    @WebMethod
+    public int mul(int a, int b) { return a * b; }
+
+    @WebMethod
+    public int div(int a, int b) { return a / b; }
+}
+```
+
+Create `OperatorPublisher.java` in the same package:
+
+```java
+package com.example.calculator;
+
+import javax.xml.ws.Endpoint;
+
+public class OperatorPublisher {
+
+    public static void main(String[] args) {
+
+        String url = "http://localhost:8085/calculator";
+
+        Endpoint.publish(url, new OperatorService());
+
+        System.out.println("Service started at: " + url + "?wsdl");
+
+    }
+
+}
+```
+
+6. Set Language Level
+   File → Project Structure → Modules → Select calculator
+   → Sources → Set Language Level = 8
+   → Dependencies → Module SDK = Project SDK (1.8)
+   Apply → OK
+
+7. Set Target Bytecode Version
+   File → Settings → Build, Execution, Deployment → Compiler → Java Compiler
+   → Per-module bytecode version → calculator → Target = 8
+   Apply → OK
+
+8. Set Maven Runner JRE (Java 1.8)
+   File → Settings → Build Tools → Maven → Runner → JRE = Java 1.8
+   Apply → OK
+
+9. Update pom.xml Settings
+
+* Ensure:
+
+```
+<maven.compiler.source>1.8</maven.compiler.source>
+<maven.compiler.target>1.8</maven.compiler.target>
+```
+
+* Ensure jakarta.servlet-api version = 4.0.4
+  Right-click pom.xml → Maven → Sync Project
+
+10. Run the Web Service
+    If `HelloServlet.java` errors → replace `jakarta.servlet.*` with `javax.servlet.*`
+    Go to Build → Rebuild Project
+    Open `OperatorPublisher.java` → Run
+
+Console shows:
+
+```
+Service started at http://localhost:8085/calculator
+```
+
+Access WSDL:
+
+```
+http://localhost:8085/calculator?wsdl
+```
+
+---
+
+11. Create a Client Application - Client Project
+
+* File → New Project → **Java (simple Java project)**
+* Project Name: client
+* Finish → Open in New Window (do not close server project)
+
+12. Generate Client Proxy Classes using wsimport
+    Open terminal → go to client `src` folder:
+
+```
+cd /IdeaProjects/client/src/
+wsimport -keep -p com.example.client http://localhost:8085/calculator?wsdl
+```
+
+13. Create Client File
+    Create `TestOperatorClient.java`:
+
+```java
+package com.example.client;
+
+public class TestOperatorClient {
+
+    public static void main(String[] args) {
+
+        OperatorServiceService service = new OperatorServiceService();
+        OperatorService port = service.getOperatorServicePort();
+
+        System.out.println("Add: " + port.add(20, 5));
+        System.out.println("Sub: " + port.sub(20, 5));
+        System.out.println("Mul: " + port.mul(20, 5));
+        System.out.println("Div: " + port.div(20, 5));
+    }
+}
+```
+
+14. Run Client
+    Expected Output:
+
+```
+Add: 25
+Sub: 15
+Mul: 100
+Div: 4
+```
+
+---
