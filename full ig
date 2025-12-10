@@ -1,0 +1,486 @@
+
+---
+
+# **EXPERIMENT 1: PASSWORDLESS AUTHENTICATION**
+
+## **MAIN STEPS**
+
+1. Generate SSH Key
+
+```
+ssh-keygen -t rsa
+```
+
+2. Copy Key to Slaves
+
+```
+ssh-copy-id <SLAVE1-IP>
+ssh-copy-id <SLAVE2-IP>
+```
+
+3. Test passwordless login
+
+```
+ssh <SLAVE1-IP>
+ssh <SLAVE2-IP>
+```
+
+---
+
+## **ADDITIONAL COMMANDS YOU MAY NEED**
+
+### Check if SSH folder exists:
+
+```
+ls -ld ~/.ssh
+```
+
+### Fix permissions (critical in Ubuntu labs):
+
+```
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+```
+
+### If ssh-copy-id not available:
+
+```
+cat ~/.ssh/id_rsa.pub | ssh <SLAVE-IP> "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+```
+
+---
+
+## **LIKELY ERRORS & FIXES**
+
+### ❌ *Permission denied (publickey)*
+
+**Cause:** Wrong permissions.
+
+**Fix:**
+
+```
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+```
+
+---
+
+### ❌ *ssh: Could not resolve hostname*
+
+**Fix:** Check IP
+
+```
+ping <SLAVE-IP>
+```
+
+---
+
+### ❌ Key copied but still asks password
+
+**Fix:**
+
+* Delete old authorized keys
+
+```
+rm ~/.ssh/authorized_keys
+```
+
+* Re-run `ssh-copy-id`.
+
+---
+
+---
+
+# **EXPERIMENT 2: JAVA WEB SERVICES USING TOMCAT (CALCULATOR PROGRAM)**
+
+## **MAIN STEPS**
+
+1. Check Apache Tomcat
+
+```
+sudo systemctl restart tomcat
+go to localhost:<tomcat_port_no>
+sudo systemctl status tomcat
+```
+
+2. Install JDK + IntelliJ
+
+```
+sudo apt update
+sudo apt install openjdk-8-jdk
+sudo snap install intellij-idea-ultimate --classic
+```
+
+3. Add Tomcat to IntelliJ (Settings → Application Servers)
+
+4. Create Java Enterprise Project → Web Application → Tomcat 9 → Name: calculator
+
+5. Create service classes:
+
+### OperatorService.java
+
+```java
+package com.example.calculator;
+
+import java.util.List;
+import javax.jws.WebMethod;
+import javax.jws.WebService;
+
+@WebService
+public class OperatorService {
+
+    @WebMethod
+    public int add(int a, int b) { return a + b; }
+
+    @WebMethod
+    public int sub(int a, int b) { return a - b; }
+
+    @WebMethod
+    public int mul(int a, int b) { return a * b; }
+
+    @WebMethod
+    public int div(int a, int b) { return a / b; }
+}
+```
+
+### OperatorPublisher.java
+
+```java
+package com.example.calculator;
+
+import javax.xml.ws.Endpoint;
+
+public class OperatorPublisher {
+    public static void main(String[] args) {
+        String url = "http://localhost:8085/calculator";
+        Endpoint.publish(url, new OperatorService());
+        System.out.println("Service started at: " + url + "?wsdl");
+    }
+}
+```
+
+6. Set project language level = **8**, bytecode version = **8**, Maven runner → JRE 1.8
+
+7. Update `pom.xml` with Java 1.8 compiler versions
+
+8. Run `OperatorPublisher`
+   Open:
+
+```
+http://localhost:8085/calculator?wsdl
+```
+
+9. Create client project
+
+10. Generate stubs:
+
+```
+wsimport -keep -p com.example.client http://localhost:8085/calculator?wsdl
+```
+
+11. Create client:
+
+### TestOperatorClient.java
+
+```java
+package com.example.client;
+
+public class TestOperatorClient {
+
+    public static void main(String[] args) {
+
+        OperatorServiceService service = new OperatorServiceService();
+        OperatorService port = service.getOperatorServicePort();
+
+        System.out.println("Add: " + port.add(20, 5));
+        System.out.println("Sub: " + port.sub(20, 5));
+        System.out.println("Mul: " + port.mul(20, 5));
+        System.out.println("Div: " + port.div(20, 5));
+    }
+}
+```
+
+---
+
+## **ADDITIONAL COMMANDS**
+
+### Check Java version
+
+```
+java -version
+```
+
+### Check Tomcat installation path
+
+```
+sudo ls /opt/tomcat
+```
+
+### Give Tomcat permission (usually required in lab):
+
+```
+sudo chmod -R a+rX /opt/tomcat
+```
+
+---
+
+## **LIKELY ERRORS & FIXES**
+
+### ❌ *javax.servlet not found*
+
+Fix pom.xml:
+
+```
+<dependency>
+  <groupId>javax.servlet</groupId>
+  <artifactId>javax.servlet-api</artifactId>
+  <version>4.0.1</version>
+</dependency>
+```
+
+---
+
+### ❌ Tomcat does not start in IntelliJ
+
+Fix permissions:
+
+```
+sudo chmod -R 755 /opt/tomcat
+```
+
+---
+
+### ❌ wsimport not found
+
+Install JDK 8 explicitly:
+
+```
+sudo apt install openjdk-8-jdk
+```
+
+Or call:
+
+```
+/usr/lib/jvm/java-8-openjdk-amd64/bin/wsimport ...
+```
+
+---
+
+### ❌ WSDL opens but client throws errors
+
+Ensure server still running — restart:
+
+```
+Run → OperatorPublisher → Run
+```
+
+---
+
+---
+
+# **EXPERIMENT 3: WINDOWS SHARE (SMB)**
+
+## **MAIN STEPS**
+
+1. Create user in TrueNAS
+2. Set password
+3. Assign permissions to dataset
+4. Create pool(s)
+5. Create dataset for Windows share:
+
+```
+/mnt/Pool2/WINDOWS
+```
+
+6. Enable **SMB** service
+7. Go to Sharing → Windows Shares (SMB) → Add
+   Path:
+
+```
+/mnt/Pool2/WINDOWS
+```
+
+8. From Windows → Map network drive
+
+```
+\\<truenas-ip>\WINDOWS
+```
+
+9. Enter TrueNAS credentials and test read/write.
+
+---
+
+## **ADDITIONAL COMMANDS**
+
+### Find TrueNAS IP in console:
+
+```
+ifconfig
+```
+
+or
+
+```
+ip a
+```
+
+Interface usually: `em0`, `ens33`, `vtnet0`.
+
+---
+
+### Restart networking (if no IP):
+
+```
+service netif restart
+service routing restart
+```
+
+---
+
+### Fix permissions via CLI:
+
+```
+chmod -R 777 /mnt/Pool2/WINDOWS
+chown -R <user>:<user> /mnt/Pool2/WINDOWS
+```
+
+---
+
+## **LIKELY ERRORS & FIXES**
+
+### ❌ Windows says “Access Denied”
+
+Your dataset permissions are wrong → Reset to 777.
+
+### ❌ Share not visible when mapping
+
+Type manually:
+
+```
+\\<truenas-ip>\WINDOWS
+```
+
+### ❌ SMB service fails to start
+
+Restart:
+
+```
+service samba_server restart
+```
+
+---
+
+### ❌ Windows cached wrong credentials
+
+Run:
+
+```
+control keymgr.dll
+```
+
+Delete old credentials.
+
+---
+
+---
+
+# **EXPERIMENT 4: UNIX SHARE (NFS)**
+
+## **MAIN STEPS**
+
+1. Create dataset for NFS:
+
+```
+/mnt/Pool2/LINUX
+```
+
+2. Sharing → Unix Shares (NFS) → Add
+   Path:
+
+```
+/mnt/Pool2/LINUX
+```
+
+3. Enable **NFS** service
+
+4. On Linux client:
+
+```
+mkdir /nfs/shared
+mount -t nfs -o nfsvers=3 <truenas-ip>:/mnt/Pool2/LINUX /mnt/nfs_check
+```
+
+5. Verify:
+
+```
+df -h
+ls /mnt/nfs_check
+```
+
+---
+
+## **ADDITIONAL COMMANDS**
+
+### Check export list:
+
+```
+showmount -e <truenas-ip>
+```
+
+### Restart NFS services:
+
+```
+service nfsd restart
+service mountd restart
+```
+
+### Fix permissions via CLI:
+
+```
+chmod -R 777 /mnt/Pool2/LINUX
+```
+
+---
+
+## **LIKELY ERRORS & FIXES**
+
+### ❌ access denied by server
+
+You forgot Allowed Hosts.
+
+Fix in GUI or use:
+
+```
+*     (allow all)
+```
+
+---
+
+### ❌ mount hangs
+
+Check if TrueNAS reachable:
+
+```
+ping <truenas-ip>
+```
+
+---
+
+### ❌ wrong NFS version
+
+Try:
+
+```
+mount -t nfs -o nfsvers=4 <truenas-ip>:/mnt/Pool2/LINUX /mnt/nfs_check
+```
+
+---
+
+### ❌ unmount fails
+
+```
+sudo umount -l /mnt/nfs_check
+```
+
+---
+
